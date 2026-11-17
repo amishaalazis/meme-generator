@@ -77,6 +77,9 @@ func (s *Service) MarkExpired(ctx context.Context) (int64, error) {
 func (s *Service) Status(ctx context.Context, userID string) (SubscriptionStatus, error) {
 	sub, plan, err := s.repo.ActiveByUser(ctx, userID)
 	if err == nil {
+		if sub.EndsAt != nil && !sub.EndsAt.After(time.Now()) {
+			return SubscriptionStatus{Subscribed: false, MemesUsed: 0, MaxMemes: 0}, nil
+		}
 		used, err := s.repo.MemesUsed(ctx, userID, time.Now().AddDate(0, 0, -int(plan.Duration)))
 		if err != nil {
 			return SubscriptionStatus{}, err

@@ -169,7 +169,7 @@ func (r *Repository) ActiveByUser(ctx context.Context, userID string) (Subscript
 		       p.id, p.code, p.name, p.price_idr, p.duration_days, p.max_memes, p.active
 		FROM subscriptions s
 		JOIN plans p ON p.id = s.plan_id
-		WHERE s.user_id = $1 AND s.status = 'active'
+		WHERE s.user_id = $1 AND s.status = 'active' AND s.ends_at > now()
 		ORDER BY s.ends_at DESC LIMIT 1`
 	var (
 		sub Subscription
@@ -184,6 +184,9 @@ func (r *Repository) ActiveByUser(ctx context.Context, userID string) (Subscript
 	}
 	if err != nil {
 		return Subscription{}, Plan{}, fmt.Errorf("subscription repository: active by user gagal: %w", err)
+	}
+	if sub.EndsAt != nil && sub.EndsAt.Before(time.Now()) {
+		return Subscription{}, Plan{}, ErrNotSubscribed
 	}
 	return sub, p, nil
 }

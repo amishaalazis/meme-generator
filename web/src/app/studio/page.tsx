@@ -190,6 +190,12 @@ export default function StudioPage() {
       memes.refetch();
     } catch (err) {
       setError(describeError(err));
+      // Jika ditolak karena paket habis (403), refresh status langganan
+      // agar UI langsung menampilkan kondisi tidak berlangganan.
+      const e = err as { response?: { status?: number } };
+      if (e?.response?.status === 403) {
+        status.refetch();
+      }
     } finally {
       setBusy(false);
     }

@@ -31,9 +31,11 @@ export function useSubscriptionStatus() {
     queryKey: queryKeys.subscription,
     queryFn: async () =>
       unwrap<SubscriptionStatus>(await api.get("/api/v1/subscription/status")),
-    // BUG: status dianggap abadi — setelah beli/expired, UI tidak pernah
-    // mengambil ulang sampai invalidate manual / reload penuh.
-    staleTime: Number.POSITIVE_INFINITY,
+    // Polling tiap 60 detik agar expiry paket terdeteksi tanpa reload manual.
+    // staleTime 0 memastikan data selalu dianggap basi sehingga refetch dilakukan
+    // saat window kembali aktif (refetchOnWindowFocus default true).
+    staleTime: 0,
+    refetchInterval: 60 * 1000,
   });
 }
 
