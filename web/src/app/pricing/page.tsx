@@ -1,7 +1,6 @@
 "use client";
 
 // Pricing: daftar paket dari backend; checkout lewat payment gateway mock.
-// NOTE (scaffold): belum ada redirect/confirm UI.
 
 import { useRouter } from "next/navigation";
 import { useCheckout, usePlans, useSubscriptionStatus } from "@/lib/queries";
@@ -63,14 +62,22 @@ export default function PricingPage() {
               </p>
               <Button
                 className="w-full"
-                onClick={() =>
-                  checkout.mutate(plan.code, {
-                    onSuccess: (res) =>
-                      router.push(`/checkout/${res.payment.reference}`),
-                  })
-                }
+                disabled={checkout.isPending}
+                onClick={() => {
+                  // Idempotency-Key dibuat sekali per klik (per intent),
+                  // bukan di dalam mutationFn, agar double-click / retry
+                  // mengirim key yang sama dan tidak menghasilkan dua checkout.
+                  const idempotencyKey = crypto.randomUUID();
+                  checkout.mutate(
+                    { planCode: plan.code, idempotencyKey },
+                    {
+                      onSuccess: (res) =>
+                        router.push(`/checkout/${res.payment.reference}`),
+                    },
+                  );
+                }}
               >
-                Berlangganan
+                {checkout.isPending ? "Memproses…" : "Berlangganan"}
               </Button>
             </CardContent>
           </Card>

@@ -4,6 +4,7 @@
 // Di produksi halaman ini digantikan halaman payment gateway sungguhan
 // yang memanggil webhook /confirm dengan verifikasi signature.
 
+import { useState } from "react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
@@ -16,26 +17,23 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { useConfirmPayment } from "@/lib/queries";
-
-function formatIdr(n: number) {
-  return new Intl.NumberFormat("id-ID", {
-    style: "currency",
-    currency: "IDR",
-    maximumFractionDigits: 0,
-  }).format(n);
-}
+import { describeError } from "@/lib/errors";
 
 export default function CheckoutPage() {
   const { reference } = useParams<{ reference: string }>();
   const router = useRouter();
   const confirm = useConfirmPayment();
+  const [payError, setPayError] = useState("");
 
   const onPay = async () => {
+    setPayError("");
     try {
       await confirm.mutateAsync(reference);
+      // Navigasi setelah invalidate selesai agar halaman /pricing
+      // langsung menampilkan status yang sudah aktif.
       setTimeout(() => router.push("/pricing"), 1200);
-    } catch {
-      // BUG: error sengaja ditelan — gagal bayar tidak menampilkan apa-apa.
+    } catch (err) {
+      setPayError(describeError(err));
     }
   };
 
@@ -58,10 +56,23 @@ export default function CheckoutPage() {
               ✅ Pembayaran berhasil! Langganan Anda aktif. Mengalihkan…
             </p>
           ) : null}
+          {payError && (
+            <p className="text-center text-sm font-medium text-destructive">
+              {payError}
+            </p>
+          )}
         </CardContent>
         <CardFooter className="flex gap-2">
-          <Button className="flex-1" onClick={onPay}>
-            {confirm.data ? "Lunas" : "Bayar Sekarang (Simulasi)"}
+          <Button
+            className="flex-1"
+            onClick={onPay}
+            disabled={confirm.isPending || !!confirm.data}
+          >
+            {confirm.isPending
+              ? "Memproses…"
+              : confirm.data
+                ? "Lunas"
+                : "Bayar Sekarang (Simulasi)"}
           </Button>
           <Button asChild variant="ghost">
             <Link href="/pricing">Batal</Link>
