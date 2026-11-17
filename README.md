@@ -77,3 +77,4 @@ Perintah lain: `make migrate-new name=x`, `make migrate-up`, `make sqlc-generate
 - **Subscription**: model plans/payments/subscriptions dengan payment gateway *mock*
   (endpoint checkout yang langsung mengonfirmasi pembayaran — siap ditukar ke provider nyata).
 - **Auth**: JWT access + refresh, refresh token disimpan di Redis agar bisa direvoke.
+# meme-generator
