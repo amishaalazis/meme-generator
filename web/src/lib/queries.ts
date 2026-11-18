@@ -31,10 +31,9 @@ export function useSubscriptionStatus() {
     queryKey: queryKeys.subscription,
     queryFn: async () =>
       unwrap<SubscriptionStatus>(await api.get("/api/v1/subscription/status")),
-    // Polling tiap 60 detik agar expiry paket terdeteksi tanpa reload manual.
-    // staleTime 0 memastikan data selalu dianggap basi sehingga refetch dilakukan
-    // saat window kembali aktif (refetchOnWindowFocus default true).
     staleTime: 0,
+    refetchOnMount: "always",
+    refetchOnWindowFocus: true,
     refetchInterval: 60 * 1000,
   });
 }
@@ -53,7 +52,9 @@ export function useCheckout() {
           },
         }),
       ),
-    onSuccess: () => qc.invalidateQueries({ queryKey: queryKeys.subscription }),
+    onSuccess: async () => {
+      await qc.invalidateQueries({ queryKey: queryKeys.subscription });
+    },
   });
 }
 
@@ -66,7 +67,10 @@ export function useConfirmPayment() {
           `/api/v1/subscription/payments/${reference}/confirm`,
         ),
       ),
-    onSuccess: () => qc.invalidateQueries({ queryKey: queryKeys.subscription }),
+    onSuccess: async () => {
+      await qc.invalidateQueries({ queryKey: queryKeys.subscription });
+      await qc.refetchQueries({ queryKey: queryKeys.subscription });
+    },
   });
 }
 

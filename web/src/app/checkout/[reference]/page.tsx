@@ -7,6 +7,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
+import { useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -16,22 +17,24 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { useConfirmPayment } from "@/lib/queries";
+import { queryKeys, useConfirmPayment } from "@/lib/queries";
 import { describeError } from "@/lib/errors";
 
 export default function CheckoutPage() {
   const { reference } = useParams<{ reference: string }>();
   const router = useRouter();
   const confirm = useConfirmPayment();
+  const qc = useQueryClient();
   const [payError, setPayError] = useState("");
 
   const onPay = async () => {
     setPayError("");
     try {
       await confirm.mutateAsync(reference);
-      // Navigasi setelah invalidate selesai agar halaman /pricing
-      // langsung menampilkan status yang sudah aktif.
-      setTimeout(() => router.push("/pricing"), 1200);
+      await qc.invalidateQueries({ queryKey: queryKeys.subscription });
+      await qc.refetchQueries({ queryKey: queryKeys.subscription });
+      // Beri sedikit jeda agar teks sukses terbaca sebelum beralih ke /pricing
+      setTimeout(() => router.push("/pricing"), 800);
     } catch (err) {
       setPayError(describeError(err));
     }
