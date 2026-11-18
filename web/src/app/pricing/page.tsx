@@ -2,6 +2,7 @@
 
 // Pricing: daftar paket dari backend; checkout lewat payment gateway mock.
 
+import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useCheckout, usePlans, useSubscriptionStatus } from "@/lib/queries";
 import { describeError } from "@/lib/errors";
@@ -21,6 +22,34 @@ export default function PricingPage() {
   const status = useSubscriptionStatus();
   const checkout = useCheckout();
   const router = useRouter();
+  const idempotencyKeysRef = useRef<Record<string, string>>({});
+  const [selectedPlanCode, setSelectedPlanCode] = useState<string | null>(null);
+
+  const handleCheckout = (planCode: string) => {
+    if (checkout.isPending || selectedPlanCode) return;
+    setSelectedPlanCode(planCode);
+
+    // Idempotency-Key dibuat satu per paket (per intent): jika user klik berulang kali
+    // karena internet lemot, key yang sama dikirimkan ke server sehingga server
+    // mengenali maksud yang sama dan tidak membuat checkout ganda.
+    if (!idempotencyKeysRef.current[planCode]) {
+      idempotencyKeysRef.current[planCode] = crypto.randomUUID();
+    }
+    const idempotencyKey = idempotencyKeysRef.current[planCode];
+
+    checkout.mutate(
+      { planCode, idempotencyKey },
+      {
+        onSuccess: (res) => {
+          delete idempotencyKeysRef.current[planCode];
+          router.push(`/checkout/${res.payment.reference}`);
+        },
+        onError: () => {
+          setSelectedPlanCode(null);
+        },
+      },
+    );
+  };
 
   return (
     <main className="mx-auto max-w-4xl space-y-8 p-8">
@@ -62,22 +91,12 @@ export default function PricingPage() {
               </p>
               <Button
                 className="w-full"
-                disabled={checkout.isPending}
-                onClick={() => {
-                  // Idempotency-Key dibuat sekali per klik (per intent),
-                  // bukan di dalam mutationFn, agar double-click / retry
-                  // mengirim key yang sama dan tidak menghasilkan dua checkout.
-                  const idempotencyKey = crypto.randomUUID();
-                  checkout.mutate(
-                    { planCode: plan.code, idempotencyKey },
-                    {
-                      onSuccess: (res) =>
-                        router.push(`/checkout/${res.payment.reference}`),
-                    },
-                  );
-                }}
+                disabled={checkout.isPending || Boolean(selectedPlanCode)}
+                onClick={() => handleCheckout(plan.code)}
               >
-                {checkout.isPending ? "Memproses…" : "Berlangganan"}
+                {checkout.isPending && selectedPlanCode === plan.code
+                  ? "Memproses…"
+                  : "Berlangganan"}
               </Button>
             </CardContent>
           </Card>
