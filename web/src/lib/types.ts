@@ -37,6 +37,7 @@ export interface UploadResponse {
   id: string;
   uploadUrl: string;
   baseUrl: string;
+  contentType: string;
 }
 
 export interface CheckoutResponse {
