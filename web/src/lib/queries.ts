@@ -6,6 +6,7 @@ import {
 import { api, unwrap } from "@/lib/api";
 import type {
   CheckoutResponse,
+  ConfirmResponse,
   Meme,
   Plan,
   SubscriptionStatus,
@@ -62,7 +63,7 @@ export function useConfirmPayment() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (reference: string) =>
-      unwrap(
+      unwrap<ConfirmResponse>(
         await api.post(
           `/api/v1/subscription/payments/${reference}/confirm`,
         ),

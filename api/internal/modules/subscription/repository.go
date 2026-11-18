@@ -165,6 +165,27 @@ func (r *Repository) ConfirmPayment(ctx context.Context, reference string) (Subs
 		reference,
 	).Scan(&pay.ID, &pay.SubscriptionID, &pay.AmountIDR, &pay.Status, &pay.Reference)
 	if errors.Is(err, pgx.ErrNoRows) {
+		// Jika pembayaran dengan reference ini sudah berstatus 'paid' sebelumnya
+		// (misalnya karena double click, retry jaringan, atau konfirmasi berulang),
+		// kembalikan data pembayaran & langganan aktif yang sudah lunas (idempoten).
+		var existingPay Payment
+		var existingSub Subscription
+		checkErr := tx.QueryRow(ctx, `
+			SELECT p.id, p.subscription_id, p.amount_idr, p.status, p.reference,
+			       s.id, s.user_id, s.plan_id, s.status, s.starts_at, s.ends_at
+			FROM payments p
+			JOIN subscriptions s ON s.id = p.subscription_id
+			WHERE p.reference = $1`, reference,
+		).Scan(
+			&existingPay.ID, &existingPay.SubscriptionID, &existingPay.AmountIDR,
+			&existingPay.Status, &existingPay.Reference,
+			&existingSub.ID, &existingSub.UserID, &existingSub.PlanID,
+			&existingSub.Status, &existingSub.StartsAt, &existingSub.EndsAt,
+		)
+		if checkErr == nil && existingPay.Status == "paid" {
+			_ = tx.Commit(ctx)
+			return existingSub, existingPay, nil
+		}
 		return Subscription{}, Payment{}, ErrPaymentFailed
 	}
 	if err != nil {

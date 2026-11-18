@@ -50,3 +50,21 @@ export interface CheckoutResponse {
   };
   mockGatewayUrl: string;
 }
+
+export interface ConfirmResponse {
+  subscription: {
+    id: string;
+    userId: string;
+    planId: string;
+    status: string;
+    startsAt?: string;
+    endsAt?: string;
+  };
+  payment: {
+    id: string;
+    subscriptionId: string;
+    amountIdr: number;
+    status: string;
+    reference: string;
+  };
+}

@@ -5,6 +5,7 @@
 import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useCheckout, usePlans, useSubscriptionStatus } from "@/lib/queries";
+import { useMe } from "@/lib/auth";
 import { describeError } from "@/lib/errors";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -22,11 +23,16 @@ export default function PricingPage() {
   const status = useSubscriptionStatus();
   const checkout = useCheckout();
   const router = useRouter();
+  const me = useMe();
   const idempotencyKeysRef = useRef<Record<string, string>>({});
   const [selectedPlanCode, setSelectedPlanCode] = useState<string | null>(null);
 
   const handleCheckout = (planCode: string) => {
     if (checkout.isPending || selectedPlanCode) return;
+    if (!me.isLoading && !me.data) {
+      router.push("/login");
+      return;
+    }
     setSelectedPlanCode(planCode);
 
     // Idempotency-Key dibuat satu per paket (per intent): jika user klik berulang kali
@@ -91,12 +97,18 @@ export default function PricingPage() {
               </p>
               <Button
                 className="w-full"
-                disabled={checkout.isPending || Boolean(selectedPlanCode)}
+                disabled={
+                  checkout.isPending ||
+                  Boolean(selectedPlanCode) ||
+                  (status.data?.subscribed && status.data.planName === plan.name)
+                }
                 onClick={() => handleCheckout(plan.code)}
               >
-                {checkout.isPending && selectedPlanCode === plan.code
-                  ? "Memproses…"
-                  : "Berlangganan"}
+                {status.data?.subscribed && status.data.planName === plan.name
+                  ? "Paket Aktif"
+                  : checkout.isPending && selectedPlanCode === plan.code
+                    ? "Memproses…"
+                    : "Berlangganan"}
               </Button>
             </CardContent>
           </Card>
